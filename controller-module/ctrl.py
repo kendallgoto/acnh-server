@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+IP_ADDR = ""
+MAC_ADDR = ""
+SPI_LOC = ""
+
+spi_flash = None
+if SPI_LOC:
+    with open(SPI_LOC, 'rb') as spi_flash_file:
+        spi_flash = FlashMemory(spi_flash_file.read())
 
 import argparse
 import asyncio
@@ -109,7 +117,7 @@ async def pre_init(app, controller, reconnect_bt_addr=None, capture_file=None, s
 async def app_factory(controller, reconnect_bt_addr=None, capture_file=None, spi_flash=None, device_id=None):
     await pre_init(sio, controller, reconnect_bt_addr=reconnect_bt_addr, capture_file=capture_file, spi_flash=spi_flash, device_id=device_id)
     while(True):
-        await sio.connect('http://192.168.3.24:80', namespaces=['/controller']);
+        await sio.connect('http://' + IP_ADDR, namespaces=['/controller']);
         await sio.wait()
 
 
@@ -132,14 +140,10 @@ if __name__ == '__main__':
 
     controller = Controller.PRO_CONTROLLER
 
-    spi_flash = None
-    if args.spi_flash:
-        with open(args.spi_flash, 'rb') as spi_flash_file:
-            spi_flash = FlashMemory(spi_flash_file.read())
     with utils.get_output(path=args.log, default=None) as capture_file:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(app_factory(controller,
-                  reconnect_bt_addr=args.reconnect_bt_addr,
+                  reconnect_bt_addr=MAC_ADDR,
                   capture_file=capture_file,
                   spi_flash=spi_flash,
                   device_id=args.device_id
