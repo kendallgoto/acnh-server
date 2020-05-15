@@ -373,7 +373,7 @@
 						await sleep(0.3)
 						await createRequest('pressKey', {'key': 'up', 'time': -1});
 						await sleep(0.3)
-						if(currentTime != 1) {
+						if(currentTime >= 4) {
 							await createRequest('pressKey', {'key': 'a', 'time': -1});
 							await sleep(0.3)
 							await createRequest('pressKey', {'key': 'a', 'time': -1});
