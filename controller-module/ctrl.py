@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-IP_ADDR = ""
-MAC_ADDR = ""
-SPI_LOC = ""
 
+from dotenv import load_dotenv
+load_dotenv()
+
+IP_ADDR = os.getenv("IP_ADDR")
+MAC_ADDR = os.getenv("MAC_ADDR")
+SPI_LOC = os.getenv("SPI_LOC")
 
 import argparse
 import asyncio
