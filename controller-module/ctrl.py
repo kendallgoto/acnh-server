@@ -3,10 +3,6 @@ IP_ADDR = ""
 MAC_ADDR = ""
 SPI_LOC = ""
 
-spi_flash = None
-if SPI_LOC:
-    with open(SPI_LOC, 'rb') as spi_flash_file:
-        spi_flash = FlashMemory(spi_flash_file.read())
 
 import argparse
 import asyncio
@@ -29,6 +25,11 @@ from joycontrol.controller_state import ControllerState, button_push
 from joycontrol.memory import FlashMemory
 from joycontrol.protocol import controller_protocol_factory
 from joycontrol.server import create_hid_server
+
+spi_flash = None
+if SPI_LOC:
+    with open(SPI_LOC, 'rb') as spi_flash_file:
+        spi_flash = FlashMemory(spi_flash_file.read())
 
 logger = logging.getLogger(__name__)
 
