@@ -3,6 +3,8 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+import os
+
 IP_ADDR = os.getenv("IP_ADDR")
 MAC_ADDR = os.getenv("MAC_ADDR")
 SPI_LOC = os.getenv("SPI_LOC")
@@ -11,7 +13,6 @@ import argparse
 import asyncio
 from aiohttp import web
 import logging
-import os
 import time
 import math
 from contextlib import contextmanager
