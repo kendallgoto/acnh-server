@@ -1,0 +1,29 @@
+{
+  "name": "joycontrol-server",
+  "version": "1.0.0",
+  "description": "acnh server",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "camera-capture": "0.0.11",
+    "canvas": "^2.6.1",
+    "ffmpeg": "0.0.4",
+    "gm": "^1.23.1",
+    "jimp": "^0.10.3",
+    "jsdom": "^16.2.2",
+    "mime": "^2.4.5",
+    "node-webcam": "^0.6.1",
+    "opencv": "^7.0.0",
+    "opencv.js": "^1.2.1",
+    "parseurl": "^1.3.3",
+    "puppeteer": "^3.0.2",
+    "rimraf": "^3.0.2",
+    "sharp": "^0.25.2",
+    "socketio": "^1.0.0"
+  }
+}

@@ -1,0 +1,438 @@
+<html>
+	<head>
+		<title>Control Viewer</title>
+		<style>
+		#previewImg {
+			width:75%;
+			display: inline-block;
+		}
+		#controller {
+			width:24%;
+			display: inline-block;
+		}
+		</style>
+	</head>
+	<body>
+		<img src="" id="previewImg">
+		<object data="controller.svg" type="image/svg+xml" id="controller">
+		</object>
+		<script src="/socket.io/socket.io.js"></script>
+		<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+		<script src="https://unpkg.com/ssim.js@^2.0.0"></script>
+		<script>
+			var socket;
+			var keyList = ["ctrl_x","ctrl_a","ctrl_b","ctrl_y",
+							"ctrl_plus","ctrl_home","ctrl_share","ctrl_minus",
+							"ctrl_right","ctrl_up","ctrl_left","ctrl_down",
+							"ctrl_l","ctrl_zl","ctrl_r","ctrl_zr"];
+			var joyList = ["ctrl_l_north","ctrl_l_center","ctrl_l_east","ctrl_l_west","ctrl_l_south","ctrl_l_ne","ctrl_l_nw","ctrl_l_sw","ctrl_l_se",
+							"ctrl_r_north","ctrl_r_center","ctrl_r_east","ctrl_r_west","ctrl_r_south","ctrl_r_ne","ctrl_r_nw","ctrl_r_sw","ctrl_r_se"];
+			function sanitizeName(title) {
+				return title.replace('ctrl_', '');
+			}
+			function clickFunction(obj, pr = null) {
+				var target = sanitizeName($(obj).attr('id'));
+				console.log("click "+target);
+				$(obj).addClass('active');
+				setTimeout(function() {
+					$(obj).removeClass('active');
+				}, 200);
+				socket.emit('control', {type: 'btn', blob: {key: target, time: -1 }}, function(){
+					pr();
+				});
+			}
+			var beingHeld = [];
+			function startHold(obj, pr = null) {
+				var target = sanitizeName($(obj).attr('id'));
+				console.log("start hold "+target);
+				beingHeld.push(target);
+				$(obj).addClass('active');
+				socket.emit('control', {type: 'btn', blob: {key: target, time: 9999 }}, function(){
+					pr();
+				});
+
+			}
+			function endHold(obj, pr = null) {
+				var target = sanitizeName($(obj).attr('id'));
+				console.log("end hold "+target);
+				beingHeld.pop(target);
+				$(obj).removeClass('active');	
+				socket.emit('control', {type: 'btn', blob: {key: target, time: 0.1 }}, function(){
+					pr();
+				});
+			}
+			function pressStickBtn(obj, pr = null) {
+				//select button ...
+				var target = $(obj).attr('id');
+				//unmark all on this latch ...
+				var stickDir;
+				if(target.indexOf("ctrl_l") != -1)
+					stickDir = "l";
+				else
+					stickDir = "r";
+					
+				//unmark
+				
+				$('object').contents().find('[id^="ctrl_'+stickDir+'_"]').removeClass('active'); //unlatch
+				$(obj).addClass('active'); //latch
+				resolveStick(target, pr);
+			}
+			function resolveStick(str, pr = null) {
+				var stickDir;
+				if(str.indexOf("ctrl_l") != -1)
+					stickDir = "left";
+				else
+					stickDir = "right";
+				var direction = str.split('_')[2];
+				var hori = 0;
+				var vert = 0;
+				switch(direction) {
+					case "north":
+						hori = 0;
+						vert = 1;
+						break; 
+					case "ne":
+						hori = 1;
+						vert = 1;
+						break;
+					case "east":
+						hori = 1;
+						vert = 0;
+						break;
+					case "se":
+						hori = 1;
+						vert = -1;
+						break;
+					case "south":
+						hori = 0;
+						vert = -1;
+						break;
+					case "sw":
+						hori = -1;
+						vert = -1;
+						break;
+					case "west":
+						hori = -1;
+						vert = 0;
+						break;
+					case "nw":
+						hori = -1;
+						vert = 1;
+						break;
+					case "center":
+						hori = 0;
+						vert = 0;
+				}
+				setJoystick(hori, vert, stickDir, pr);
+			}
+			function setJoystick(hori, vert, stick, pr = null) {
+				//call server ..
+				var hori2;
+				var vert2;
+				switch(hori) {
+					case -1:
+						hori2 = "maxLeft";
+						break;
+					case 0:
+						hori2 = "c";
+						break;
+					case 1:
+						hori2 = "maxRight";
+						break;
+				}
+				switch(vert) {
+					case -1:
+						vert2 = "maxDown";
+						break;
+					case 0:
+						vert2 = "c";
+						break;
+					case 1:
+						vert2 = "maxUp";
+						break;
+				}
+				socket.emit('control', {type: 'joy', blob: {jH: hori2, jV: vert2 }}, function(){
+					if(pr != null)
+						pr();
+				});
+			}
+		    async function compareImages(src, ref, crop = null) {
+				var ssimRes;
+				var promise = new Promise(function(resolve, rej) {
+					if(crop != null) {
+						src += "?w="+crop.width+"&h="+crop.height+"&x="+crop.x+"&y="+crop.y;
+						ref += "?w="+crop.width+"&h="+crop.height+"&x="+crop.x+"&y="+crop.y;
+					}
+					ssim('/img/'+src, '/ref/'+ref).then(function(out) {
+					ssimRes = out.mssim;
+					resolve(ssimRes);
+					});
+				});
+				var res = await promise;
+				return res;
+			}
+			$(function () {
+				//Setup controller events
+				$('body').find('object').load('image/svg+xml', function() {
+					setTimeout(function() {
+						$.each(keyList, function() {
+							var timeout = timeout;
+							console.log(this);
+							var obj = $('object').contents().find('#'+this);
+							$(obj).css('opacity', '0.3');
+							console.log(obj);
+							obj.on('mousedown', function() {
+								var o = this;
+								console.log(this);
+								timeout = setTimeout(function() { startHold(o); }, 100);
+							}).on('mouseup', function() {
+								clearTimeout(timeout);
+								if(beingHeld.indexOf(sanitizeName($(obj).attr('id'))) == -1)
+									clickFunction(this);
+								else
+									endHold(this);
+							});
+						});
+						$.each(joyList, function() {
+							var obj = $('object').contents().find('#'+this);
+							$(obj).css('opacity', '0.3');
+							$(obj).click(function() {
+								pressStickBtn(obj);
+							});
+						});
+					}, 1000);
+				});
+				socket = io('/listener');
+				
+				socket.on('cycleImg', function(data) {
+					$('#previewImg').attr('src', '/img/'+data.tag);
+				});
+		    });
+			function sleep(sec) {
+			  return new Promise(resolve => setTimeout(resolve, sec * 1000));
+			}
+			async function createRequest(code, data) {
+				var resolveFn;
+				var pr = new Promise(function(resolve, err){resolveFn = resolve; });
+				if(code == 'pressKey') {
+					var obj = $('object').contents().find('#ctrl_'+data.key);
+					if(data.time == -1) {
+						return await clickFunction(obj, resolveFn);
+					} else {
+						await startHold(obj);
+						await sleep(data.time);
+						await endHold(obj, resolveFn);
+					}
+				}
+				else if(code == 'manipulateJoystick') {
+					//bypass display 
+					socket.emit('control', {type: 'joy', blob: data}, function(){
+						resolveFn();
+					});
+					return pr;
+				}
+			}
+			async function verify(imgCode) {
+				//get current img ...
+				var currentImg = $('#previewImg').attr('src').replace("/img/", "");
+				var comparison = await compareImages(currentImg, imgCode);
+				return comparison;
+			}
+			function logger(d) {
+				console.log(d);
+			}
+			async function verifyTime() {
+				var img = $('#previewImg').attr('src').replace('/img', "");
+				var crop = {x: 900, y: 550, width: 125, height: 300};
+				for(let i of Array(5).keys()) {
+					var j = i+1; //adJust
+					var compare = await compareImages(img, 'date-time-'+ j +'.jpg', crop);
+					if(compare > 0.9)
+						return j;
+				}
+				return -1;
+			}
+			async function automate() {
+				var occurance = 0;
+				//Get through controller select screen ...
+				await sleep(2);
+				for (let i of Array(5).keys()) {
+					await createRequest('pressKey', {'key': 'a', 'time': -1});
+					await sleep(1)
+				}
+				await sleep(10);
+				logger("Beginning Sequence Loop!");
+				while(true) {
+					occurance++;
+					logger("Moving RIGHT (2.8s)")
+					await createRequest('manipulateJoystick', {'jH': 'maxRight', 'jV': 'c'});
+					await sleep(2.8)
+
+					logger("Moving DOWN (5s)")
+					await createRequest('manipulateJoystick', {'jH': 'c', 'jV': 'maxDown'});
+					await sleep(5)
+
+					logger("Moving LEFT (3s)")
+					await createRequest('manipulateJoystick', {'jH': 'maxLeft', 'jV': 'c'});
+					await sleep(3)
+
+					logger("Moving DOWN (8s)")
+					await createRequest('manipulateJoystick', {'jH': 'c', 'jV': 'maxDown'});
+					await sleep(8)
+
+					logger("Moving RIGHT (6s)")
+					await createRequest('manipulateJoystick', {'jH': 'maxRight', 'jV': 'c'});
+					await sleep(6)
+
+					logger("Moving NE (4.5s)")
+					await createRequest('manipulateJoystick', {'jH': 'maxRight', 'jV': 'maxUp'});
+					await sleep(4.5)
+
+					logger("Moving RIGHT (2.6s)")
+					await createRequest('manipulateJoystick', {'jH': 'maxRight', 'jV': 'c'});
+					await sleep(2.6)
+
+					logger("Moving UP (0.5s)")
+					await createRequest('manipulateJoystick', {'jH': 'c', 'jV': 'maxUp'});
+					await sleep(1.5)
+					
+					logger("Opening Town Hall")
+					await createRequest('pressKey', {'key': 'a', 'time': -1});
+					await sleep(6);
+					var veri = await verify("load.jpg");
+					await createRequest('manipulateJoystick', {'jH': 'c', 'jV': 'c'});
+					if(veri > 0.9) {
+						console.log("verified");
+						logger("Passed Verification!!")
+						logger("Waiting for load (10s)")
+						await sleep(5)
+
+						logger("Moving UP (0.25s)")
+						await createRequest('manipulateJoystick', {'jH': 'c', 'jV': 'maxUp'});
+						await sleep(0.25)
+
+						logger("Moving RIGHT (1s)")
+						await createRequest('manipulateJoystick', {'jH': 'maxRight', 'jV': 'c'});
+						await sleep(1)
+
+						logger("Opening ATM")
+						await createRequest('manipulateJoystick', {'jH': 'c', 'jV': 'c'});
+						await createRequest('pressKey', {'key': 'a', 'time': -1});
+						await sleep(0.5)
+
+						logger("Getting Paid")
+						for (let i of Array(10).keys()) {
+							await createRequest('pressKey', {'key': 'b', 'time': 1});
+							await sleep(0.2)
+							await createRequest('pressKey', {'key': 'b', 'time': -1});
+							await sleep(0.2)
+						}
+						await sleep(2)
+
+						logger("Saving + Quitting")
+						await createRequest('pressKey', {'key': 'minus', 'time': -1});
+						await sleep(2)
+						await createRequest('pressKey', {'key': 'a', 'time': -1});
+						await sleep(1)
+						await createRequest('pressKey', {'key': 'a', 'time': -1});
+						await sleep(14)
+						await createRequest('pressKey', {'key': 'home', 'time': -1});
+						await sleep(1.5)
+
+						logger("Adjusting Date")
+						await createRequest('pressKey', {'key': 'down', 'time': -1});
+						await sleep(0.8)
+						for (let i of Array(4).keys()) {
+							await createRequest('pressKey', {'key': 'right', 'time': -1});
+							await sleep(0.3)
+						}
+						await createRequest('pressKey', {'key': 'a', 'time': -1});
+						await sleep(0.8)
+						await createRequest('pressKey', {'key': 'down', 'time': 2});
+						await sleep(0.3)
+						await createRequest('pressKey', {'key': 'right', 'time': -1});
+						await sleep(0.3)
+						for (let i of Array(4).keys()) {
+							await createRequest('pressKey', {'key': 'down', 'time': -1});
+							await sleep(0.5)
+						}
+						await createRequest('pressKey', {'key': 'a', 'time': -1});
+						await sleep(1)
+						for (let i of Array(2).keys()) {
+							await createRequest('pressKey', {'key': 'down', 'time': -1});
+							await sleep(0.5)
+						}
+						await createRequest('pressKey', {'key': 'a', 'time': -1});
+						await sleep(0.3)
+
+						logger("Checking for current time")
+						currentTime = await verifyTime()
+						logger("Got time as ", currentTime)
+
+						await createRequest('pressKey', {'key': 'right', 'time': -1});
+						await sleep(0.3)
+						await createRequest('pressKey', {'key': 'up', 'time': -1});
+						await sleep(0.3)
+						if(currentTime != 1) {
+							await createRequest('pressKey', {'key': 'a', 'time': -1});
+							await sleep(0.3)
+							await createRequest('pressKey', {'key': 'a', 'time': -1});
+							await sleep(0.3)
+							await createRequest('pressKey', {'key': 'down', 'time': -1});
+							await sleep(0.3) //Knock us back one hour if we're at 4am
+							if(currentTime == 5) {
+								await createRequest('pressKey', {'key': 'down', 'time': -1});
+								await sleep(0.3) //Knock us back 2 hours if we're at 5am -- we should only reach this if we get really unlucky
+							}
+							await createRequest('pressKey', {'key': 'a', 'time': -1});
+							await sleep(0.3)
+							await createRequest('pressKey', {'key': 'a', 'time': -1});
+							await sleep(0.3)
+							await createRequest('pressKey', {'key': 'a', 'time': -1});
+							await sleep(0.3)
+							await createRequest('pressKey', {'key': 'a', 'time': -1});
+							await sleep(0.3)
+							await createRequest('pressKey', {'key': 'a', 'time': -1});
+							await sleep(0.3)
+						} else {
+							for (let i of Array(6).keys()) {
+								await createRequest('pressKey', {'key': 'a', 'time': -1});
+								await sleep(0.3)
+							}
+							await sleep(0.5)
+						}
+					}
+					//Break out of verification pass -- If we fail verification, we want to go straight to exiting + quitting
+					logger("Restarting Game")
+					await createRequest('pressKey', {'key': 'home', 'time': -1});
+					if(veri < 0.9)
+						await sleep(2) //give us more time to exit game than otherwise needed
+					await sleep(1)
+					await createRequest('pressKey', {'key': 'x', 'time': -1});
+					await sleep(1)
+					await createRequest('pressKey', {'key': 'a', 'time': -1});
+					await sleep(5)
+					await createRequest('pressKey', {'key': 'a', 'time': -1});
+					await sleep(1)
+					await createRequest('pressKey', {'key': 'a', 'time': -1});
+
+					logger("Waiting for load (55s)")
+					await sleep(55)
+					await createRequest('pressKey', {'key': 'a', 'time': -1});
+
+					logger("Waiting for load (20s)")
+					await sleep(30)
+
+					logger("Ignoring Isabelle")
+					for (let i of Array(40).keys()) {
+						await createRequest('pressKey', {'key': 'b', 'time': -1});
+						await sleep(0.3)
+					}
+					await sleep(10) //wait for load
+					//repeat!
+				}
+
+			};
+		</script>
+	</body>
+</html>
