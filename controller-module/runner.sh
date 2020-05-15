@@ -1,1 +1,1 @@
-sudo python3 ctrl.py
+sudo nohup keepalive.sh &
