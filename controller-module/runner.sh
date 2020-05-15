@@ -1,1 +1,1 @@
-sudo nohup keepalive.sh &
+sudo nohup bash keepalive.sh &
