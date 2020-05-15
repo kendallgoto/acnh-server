@@ -11,6 +11,9 @@ from contextlib import contextmanager
 
 from aioconsole import ainput
 
+import sys
+sys.path.append('joycontrol/');
+
 from joycontrol import logging_default as log, utils
 from joycontrol.command_line_interface import ControllerCLI
 from joycontrol.controller import Controller
