@@ -16,6 +16,6 @@
     "parseurl": "^1.3.3",
     "rimraf": "^3.0.2",
     "sharp": "^0.25.2",
-    "socket.io": "^2.3.0"
+    "socket.io": "^2.4.0"
   }
 }
